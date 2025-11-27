@@ -13,27 +13,21 @@ from utils.file_manager import save_to_json, load_from_json
 class AutoTestApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("No-Code Test Builder v5.2 (Drag Text Support)")
-        self.geometry("600x800")
+        self.title("No-Code Test Builder v5.4 (Restored)")
+        self.geometry("620x800")
         
-        # --- Core Modules ---
         self.browser = BrowserManager()
         self.scanner = PageScanner()
         self.generator = ScriptGenerator()
         self.runner = TestRunner()
-        
-        # --- Data ---
         self.steps_data = []
 
-        # --- UI Setup ---
         self._setup_ui()
         
-        # 단축키 및 종료 이벤트 바인딩
         self.bind("<F2>", lambda event: self.cmd_scan_element())
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def _setup_ui(self):
-        # 1. Top Frame
         top = tk.Frame(self, pady=5)
         top.pack(fill="x")
         tk.Label(top, text="URL:").pack(side="left")
@@ -44,13 +38,13 @@ class AutoTestApp(tk.Tk):
         tk.Button(top, text="💾 저장", command=self.cmd_save).pack(side="right", padx=5)
         tk.Button(top, text="📂 로드", command=self.cmd_load).pack(side="right")
 
-        # 2. Control Frame
         ctrl = tk.Frame(self, pady=10, bg="#F5F5F5")
         ctrl.pack(fill="x")
-        tk.Button(ctrl, text="🎯 선택/드래그 요소 추가하기 (F2)", command=self.cmd_scan_element, 
-                  bg="#FFCCBC", width=30, height=2).pack(pady=5)
+        tk.Button(ctrl, text="🎯 요소/텍스트 스캔 (F2)", command=self.cmd_scan_element, 
+                  bg="#FFCCBC", width=25, height=2).pack(side="left", padx=10)
+        tk.Button(ctrl, text="🔗 URL 검증 추가", command=self.cmd_add_url_check,
+                  bg="#C8E6C9", width=20, height=2).pack(side="left", padx=5)
 
-        # 3. List Frame
         list_frame = tk.LabelFrame(self, text="테스트 시나리오", padx=5, pady=5)
         list_frame.pack(fill="both", expand=True, padx=10, pady=5)
         
@@ -72,7 +66,6 @@ class AutoTestApp(tk.Tk):
             self.cmd_highlight
         )
 
-        # 4. Bottom Frame
         btm = tk.Frame(self, pady=10, bg="#E8EAF6")
         btm.pack(fill="x")
         tk.Button(btm, text="▶ 테스트 시작", command=self.cmd_run_test, 
@@ -83,28 +76,20 @@ class AutoTestApp(tk.Tk):
         self.status_label = tk.Label(self, text="상태: 대기 중", fg="blue")
         self.status_label.pack()
 
-    # --- Command Methods ---
     def cmd_open_browser(self):
         success, msg = self.browser.open_browser(self.url_entry.get())
         if not success: messagebox.showerror("에러", msg)
         else: self.status_label.config(text=msg, fg="green")
 
     def cmd_scan_element(self):
-        # 1. [NEW] 드래그된 텍스트가 있는지 먼저 확인
         selected_text = self.browser.get_selected_text()
-        
         if selected_text:
-            # 텍스트가 있다면 -> 바로 검증 스텝 추가
             step = self.scanner.create_text_validation_step(selected_text)
             self.steps_data.append(step)
             self.list_manager.refresh()
             self.status_label.config(text=f"텍스트 검증 추가됨: {selected_text[:10]}...", fg="green")
-            
-            # 해당 텍스트 하이라이트 시도 (XPath)
-            self.browser.highlight_element(locator_type="XPATH", locator_value=step['locator'])
             return
 
-        # 2. 텍스트가 없다면 -> 기존 요소 스캔
         if hasattr(self.browser, "get_selected_element"):
              el = self.browser.get_selected_element()
         else:
@@ -114,7 +99,6 @@ class AutoTestApp(tk.Tk):
             messagebox.showwarning("경고", "요소를 클릭하거나 텍스트를 드래그 후 시도하세요.")
             return
         
-        # 페이지 이동 대비 트래커 재주입
         if hasattr(self.browser, "_inject_click_tracker"):
             self.browser._inject_click_tracker()
 
@@ -123,7 +107,20 @@ class AutoTestApp(tk.Tk):
         self.list_manager.refresh()
         self.browser.highlight_element(element=el)
 
+    def cmd_add_url_check(self):
+        if not self.browser.driver:
+            messagebox.showwarning("경고", "브라우저가 열려있지 않습니다.")
+            return
+        current_url = self.browser.driver.current_url
+        step = self.scanner.create_url_validation_step(current_url)
+        self.steps_data.append(step)
+        self.list_manager.refresh()
+        self.status_label.config(text=f"URL 검증 추가됨: {current_url}", fg="green")
+
     def cmd_highlight(self, step):
+        if step['action'] == "check_url":
+            messagebox.showinfo("알림", "URL 검증은 요소를 하이라이트할 수 없습니다.")
+            return
         self.browser.highlight_element(locator_type=step['type'], locator_value=step['locator'])
 
     def cmd_save(self):
@@ -145,7 +142,6 @@ class AutoTestApp(tk.Tk):
         script = self.generator.generate(self.url_entry.get(), self.steps_data)
         with open(config.TEMP_TEST_FILE, "w", encoding="utf-8") as f:
             f.write(script)
-        
         threading.Thread(target=self._run_process).start()
 
     def _run_process(self):
@@ -161,7 +157,6 @@ class AutoTestApp(tk.Tk):
 
     def on_close(self):
         if messagebox.askokcancel("종료", "프로그램을 종료하시겠습니까?"):
-            if self.browser:
-                self.browser.close()
+            if self.browser: self.browser.close()
             self.destroy()
             sys.exit(0)

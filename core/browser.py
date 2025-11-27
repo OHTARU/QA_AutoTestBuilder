@@ -10,25 +10,46 @@ class BrowserManager:
         self.driver = None
 
     def open_browser(self, url):
-        """브라우저 실행 및 Click Tracker 주입"""
+        """브라우저 실행 (시크릿 모드로 보안 팝업 원천 차단)"""
         try:
             service = Service(ChromeDriverManager().install())
-            self.driver = webdriver.Chrome(service=service)
-            self.driver.maximize_window()
+            
+            options = webdriver.ChromeOptions()
+            
+            # [핵심 해결책] 시크릿 모드 적용 (비밀번호 검사 안 함)
+            options.add_argument("--incognito")
+            
+            # [안정성 옵션] 튕김 방지
+            options.add_argument("--remote-debugging-port=9222")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--start-maximized")
+            options.add_argument("--disable-notifications")
+            
+            # 비밀번호 저장 팝업 끄기 (Prefs)
+            prefs = {
+                "credentials_enable_service": False,
+                "profile.password_manager_enabled": False,
+                "profile.password_manager_leak_detection": False, # 유출 감지 끄기
+            }
+            options.add_experimental_option("prefs", prefs)
+            
+            # 봇 탐지 방지
+            options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            options.add_experimental_option("useAutomationExtension", False)
+
+            self.driver = webdriver.Chrome(service=service, options=options)
             self.driver.get(url)
             
-            # [Level 2.5] 클릭 추적기(JS) 주입
             self._inject_click_tracker()
             
-            return True, "브라우저 실행 중 (클릭 및 드래그 추적 활성화)"
+            return True, "브라우저 실행 중 (시크릿 모드)"
         except Exception as e:
             return False, f"실행 실패: {e}"
 
     def _inject_click_tracker(self):
-        """자바스크립트로 클릭 이벤트 리스너를 심음"""
         if not self.driver: return
         try:
-            # 마우스가 눌리는 순간(mousedown) 그 요소를 변수에 저장
             js_code = """
             document.addEventListener('mousedown', function(event) {
                 window.lastClickedElement = event.target;
@@ -39,41 +60,30 @@ class BrowserManager:
             print(f"Tracker Injection Failed: {e}")
 
     def get_selected_element(self):
-        """마지막으로 클릭된 요소를 가져옴 (없으면 Active Element)"""
         if not self.driver: return None
-
         try:
-            # 1. JS로 기록된 '마지막 클릭 요소'를 가져와 봄
             last_el = self.driver.execute_script("return window.lastClickedElement;")
-            
-            if last_el:
-                return last_el
-            
-            # 2. 기록된 게 없으면 기존 방식(Focus) 시도
+            if last_el: return last_el
             return self.driver.switch_to.active_element
-            
         except Exception:
             return self.driver.switch_to.active_element
 
     def get_selected_text(self):
-        """[NEW] 현재 드래그(Highlight)된 텍스트를 가져옴"""
         if not self.driver: return ""
         try:
-            # 자바스크립트로 선택 영역의 텍스트 추출
             text = self.driver.execute_script("return window.getSelection().toString();")
             return text.strip() if text else ""
         except Exception:
             return ""
 
     def highlight_element(self, element=None, locator_type=None, locator_value=None):
-        """요소 하이라이트 (CSS Selector 지원)"""
         if not self.driver: return
-
         try:
             target = element
             if not target and locator_type and locator_value:
                 if locator_type == "ID": by = By.ID
                 elif locator_type == "CSS": by = By.CSS_SELECTOR
+                elif locator_type == "NAME": by = By.NAME
                 else: by = By.XPATH
                 target = self.driver.find_element(by, locator_value)
             
@@ -88,5 +98,8 @@ class BrowserManager:
 
     def close(self):
         if self.driver:
-            self.driver.quit()
+            try:
+                self.driver.quit()
+            except:
+                pass
             self.driver = None

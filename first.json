@@ -1,0 +1,68 @@
+{
+    "url": "https://www.saucedemo.com/",
+    "steps": [
+        {
+            "name": "[input] Data-Test: username",
+            "type": "CSS",
+            "locator": "[data-test='username']",
+            "action": "input",
+            "value": "standard_user"
+        },
+        {
+            "name": "[input] Data-Test: password",
+            "type": "CSS",
+            "locator": "[data-test='password']",
+            "action": "input_password",
+            "value": "secret_sauce"
+        },
+        {
+            "name": "[input] Data-Test: login-button",
+            "type": "CSS",
+            "locator": "[data-test='login-button']",
+            "action": "click",
+            "value": ""
+        },
+        {
+            "name": "[button] ID: react-burger-menu-btn",
+            "type": "ID",
+            "locator": "react-burger-menu-btn",
+            "action": "click",
+            "value": ""
+        },
+        {
+            "name": "[a] Data-Test: about-sidebar-link",
+            "type": "CSS",
+            "locator": "[data-test='about-sidebar-link']",
+            "action": "click",
+            "value": ""
+        },
+        {
+            "name": "[div] Class: MuiStack-root css-3a2c0r",
+            "type": "CSS",
+            "locator": ".MuiStack-root.css-3a2c0r",
+            "action": "click",
+            "value": ""
+        },
+        {
+            "name": "[span] Class: MuiTypography-root MuiTypography-buttonLabel css-1mh9myf",
+            "type": "CSS",
+            "locator": ".MuiTypography-root.MuiTypography-buttonLabel.css-1mh9myf",
+            "action": "click",
+            "value": ""
+        },
+        {
+            "name": "[button] Class: MuiButtonBase-root MuiButton-root MuiButton-contained MuiButton-containedDark MuiButton-sizeMedium MuiButton-containedSizeMedium MuiButton-colorDark MuiButton-disableElevation MuiButton-root MuiButton-contained MuiButton-containedDark MuiButton-sizeMedium MuiButton-containedSizeMedium MuiButton-colorDark MuiButton-disableElevation css-166scr5",
+            "type": "CSS",
+            "locator": ".MuiButtonBase-root.MuiButton-root.MuiButton-contained.MuiButton-containedDark.MuiButton-sizeMedium.MuiButton-containedSizeMedium.MuiButton-colorDark.MuiButton-disableElevation.MuiButton-root.MuiButton-contained.MuiButton-containedDark.MuiButton-sizeMedium.MuiButton-containedSizeMedium.MuiButton-colorDark.MuiButton-disableElevation.css-166scr5",
+            "action": "click",
+            "value": ""
+        },
+        {
+            "name": "[a] Text: Sign up with Google",
+            "type": "XPATH",
+            "locator": "//a[contains(text(), 'Sign up with Google')]",
+            "action": "click",
+            "value": ""
+        }
+    ]
+}
