@@ -13,7 +13,7 @@
             "type": "CSS",
             "locator": "[data-test='password']",
             "action": "input_password",
-            "value": "secret_sauce"
+            "value": "ENC:gAAAAABpKAme0_QXGCCXLcDbFb6ctTZWhJlHm5XGMbO9jiZl7A0-zz2RZrHJuguWL4lHpzTN-Z7i0TsH5VCafhXaMDoLqPzmkg=="
         },
         {
             "name": "[input] Data-Test: login-button",
@@ -37,30 +37,30 @@
             "value": ""
         },
         {
-            "name": "[div] Class: MuiStack-root css-3a2c0r",
+            "name": "[div] Class: .MuiStack-root.css-3a2c0r",
             "type": "CSS",
             "locator": ".MuiStack-root.css-3a2c0r",
             "action": "click",
             "value": ""
         },
         {
-            "name": "[span] Class: MuiTypography-root MuiTypography-buttonLabel css-1mh9myf",
+            "name": "[span] Class: .MuiTypography-root.MuiTypography-buttonLabel",
             "type": "CSS",
-            "locator": ".MuiTypography-root.MuiTypography-buttonLabel.css-1mh9myf",
+            "locator": ".MuiTypography-root.MuiTypography-buttonLabel",
             "action": "click",
             "value": ""
         },
         {
-            "name": "[button] Class: MuiButtonBase-root MuiButton-root MuiButton-contained MuiButton-containedDark MuiButton-sizeMedium MuiButton-containedSizeMedium MuiButton-colorDark MuiButton-disableElevation MuiButton-root MuiButton-contained MuiButton-containedDark MuiButton-sizeMedium MuiButton-containedSizeMedium MuiButton-colorDark MuiButton-disableElevation css-166scr5",
+            "name": "[button] Class: .MuiButtonBase-root.MuiButton-root.MuiButton-contained.MuiButton-containedDark.MuiButton-sizeMedium.MuiButton-containedSizeMedium.MuiButton-colorDark.MuiButton-disableElevation.MuiButton-root.MuiButton-contained.MuiButton-containedDark.MuiButton-sizeMedium.MuiButton-containedSizeMedium.MuiButton-colorDark.MuiButton-disableElevation",
             "type": "CSS",
-            "locator": ".MuiButtonBase-root.MuiButton-root.MuiButton-contained.MuiButton-containedDark.MuiButton-sizeMedium.MuiButton-containedSizeMedium.MuiButton-colorDark.MuiButton-disableElevation.MuiButton-root.MuiButton-contained.MuiButton-containedDark.MuiButton-sizeMedium.MuiButton-containedSizeMedium.MuiButton-colorDark.MuiButton-disableElevation.css-166scr5",
+            "locator": ".MuiButtonBase-root.MuiButton-root.MuiButton-contained.MuiButton-containedDark.MuiButton-sizeMedium.MuiButton-containedSizeMedium.MuiButton-colorDark.MuiButton-disableElevation.MuiButton-root.MuiButton-contained.MuiButton-containedDark.MuiButton-sizeMedium.MuiButton-containedSizeMedium.MuiButton-colorDark.MuiButton-disableElevation",
             "action": "click",
             "value": ""
         },
         {
-            "name": "[a] Text: Sign up with Google",
-            "type": "XPATH",
-            "locator": "//a[contains(text(), 'Sign up with Google')]",
+            "name": "[a] Title: Authenticate with Google",
+            "type": "CSS",
+            "locator": "[title='Authenticate with Google']",
             "action": "click",
             "value": ""
         }

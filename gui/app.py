@@ -13,7 +13,7 @@ from utils.file_manager import save_to_json, load_from_json
 class AutoTestApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("No-Code Test Builder v5.4 (Restored)")
+        self.title("No-Code Test Builder v5.5 (Level 3.5 Update)")
         self.geometry("620x800")
         
         self.browser = BrowserManager()
@@ -28,6 +28,7 @@ class AutoTestApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def _setup_ui(self):
+        # 1. Top
         top = tk.Frame(self, pady=5)
         top.pack(fill="x")
         tk.Label(top, text="URL:").pack(side="left")
@@ -38,6 +39,7 @@ class AutoTestApp(tk.Tk):
         tk.Button(top, text="💾 저장", command=self.cmd_save).pack(side="right", padx=5)
         tk.Button(top, text="📂 로드", command=self.cmd_load).pack(side="right")
 
+        # 2. Control
         ctrl = tk.Frame(self, pady=10, bg="#F5F5F5")
         ctrl.pack(fill="x")
         tk.Button(ctrl, text="🎯 요소/텍스트 스캔 (F2)", command=self.cmd_scan_element, 
@@ -45,6 +47,7 @@ class AutoTestApp(tk.Tk):
         tk.Button(ctrl, text="🔗 URL 검증 추가", command=self.cmd_add_url_check,
                   bg="#C8E6C9", width=20, height=2).pack(side="left", padx=5)
 
+        # 3. List
         list_frame = tk.LabelFrame(self, text="테스트 시나리오", padx=5, pady=5)
         list_frame.pack(fill="both", expand=True, padx=10, pady=5)
         
@@ -66,16 +69,23 @@ class AutoTestApp(tk.Tk):
             self.cmd_highlight
         )
 
+        # 4. Bottom
         btm = tk.Frame(self, pady=10, bg="#E8EAF6")
         btm.pack(fill="x")
+        
+        # [Level 3.5] Headless 체크박스 추가
+        self.headless_var = tk.BooleanVar(value=False)
+        tk.Checkbutton(btm, text="Headless 모드 (브라우저 숨김)", variable=self.headless_var, bg="#E8EAF6").pack(side="top", pady=2)
+
         tk.Button(btm, text="▶ 테스트 시작", command=self.cmd_run_test, 
-                  bg="#4CAF50", fg="white", width=20).pack(side="left", padx=20)
+                  bg="#4CAF50", fg="white", width=20).pack(side="left", padx=20, pady=5)
         tk.Button(btm, text="⏹ 정지", command=self.cmd_stop_test, 
-                  bg="#F44336", fg="white").pack(side="right", padx=20)
+                  bg="#F44336", fg="white").pack(side="right", padx=20, pady=5)
         
         self.status_label = tk.Label(self, text="상태: 대기 중", fg="blue")
         self.status_label.pack()
 
+    # --- Commands ---
     def cmd_open_browser(self):
         success, msg = self.browser.open_browser(self.url_entry.get())
         if not success: messagebox.showerror("에러", msg)
@@ -118,8 +128,7 @@ class AutoTestApp(tk.Tk):
         self.status_label.config(text=f"URL 검증 추가됨: {current_url}", fg="green")
 
     def cmd_highlight(self, step):
-        if step['action'] == "check_url":
-            messagebox.showinfo("알림", "URL 검증은 요소를 하이라이트할 수 없습니다.")
+        if step['action'] in ["check_url", "comment"]:
             return
         self.browser.highlight_element(locator_type=step['type'], locator_value=step['locator'])
 
@@ -139,7 +148,11 @@ class AutoTestApp(tk.Tk):
 
     def cmd_run_test(self):
         if not self.steps_data: return
-        script = self.generator.generate(self.url_entry.get(), self.steps_data)
+        
+        # [Level 3.5] Headless 옵션 전달
+        is_headless = self.headless_var.get()
+        script = self.generator.generate(self.url_entry.get(), self.steps_data, is_headless)
+        
         with open(config.TEMP_TEST_FILE, "w", encoding="utf-8") as f:
             f.write(script)
         threading.Thread(target=self._run_process).start()
