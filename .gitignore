@@ -1,0 +1,33 @@
+# 1. 가상환경 폴더 (용량이 매우 크고, 컴퓨터마다 다름)
+venv/
+env/
+.venv/
+
+# 2. 파이썬 컴파일 파일 (자동 생성되는 임시 파일)
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 3. 프로젝트 실행 시 생성되는 임시 파일들 (중요!)
+temp_test.py
+geckodriver.log
+chromedriver.log
+
+# 4. 테스트 결과 및 캐시 데이터
+allure_results/
+allure-report/
+.pytest_cache/
+assets/
+
+# 5. IDE 설정 파일 (내 컴퓨터 설정이 남의 컴퓨터에 가면 꼬임)
+.idea/
+.vscode/
+*.swp
+
+# 6. 운영체제 시스템 파일
+.DS_Store
+Thumbs.db
+
+# 7. (선택사항) 민감한 정보가 담긴 파일
+.env
+secrets.json
