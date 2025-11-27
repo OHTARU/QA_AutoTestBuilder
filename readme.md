@@ -81,7 +81,7 @@ AutoTestBuilder/
 ### 2. 설치 (Installation)
 ```bash
 # 저장소 클론
-git clone https://github.com/[본인아이디]/AutoTestBuilder.git
+git clone https://github.com/OHTARU/AutoTestBuilder.git
 
 # 프로젝트 폴더로 이동
 cd AutoTestBuilder
