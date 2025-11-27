@@ -2,7 +2,7 @@ import config
 
 class ScriptGenerator:
     def generate(self, url, steps):
-        """Pytest 스크립트 생성 (시크릿 모드 적용)"""
+        """Pytest 스크립트 생성 (보안 강화: repr 사용)"""
         
         script = f"""
 import pytest
@@ -20,8 +20,6 @@ import time
 @pytest.fixture
 def driver():
     options = webdriver.ChromeOptions()
-    
-    # [핵심] 시크릿 모드 및 안정성 옵션
     options.add_argument("--incognito") 
     options.add_argument("--remote-debugging-port=9222")
     options.add_argument("--no-sandbox")
@@ -35,7 +33,6 @@ def driver():
         "profile.password_manager_leak_detection": False,
     }}
     options.add_experimental_option("prefs", prefs)
-    
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
     options.add_experimental_option("useAutomationExtension", False)
 
@@ -67,6 +64,10 @@ def test_scenario(driver):
             action = step["action"]
             value = step["value"]
 
+            # [보안 패치] 값(Value)을 안전하게 변환 (repr 사용)
+            # repr("abc") -> "'abc'", repr('a"b') -> "'a\"b'" 처럼 자동으로 따옴표 처리해줌
+            safe_value = repr(value)
+
             if action in ["accept_alert", "dismiss_alert", "switch_default", "check_url"]:
                  script += f"""
     with allure.step("Step {i+1}: {action.upper()}"):
@@ -92,16 +93,17 @@ def test_scenario(driver):
 """
 
             elif action in ["input", "input_password"]:
-                script += f"        el.clear()\n        el.send_keys('{value}')\n"
+                # [수정] safe_value 사용 (이미 따옴표가 포함되어 있으므로 f-string에서 따옴표 제거)
+                script += f"        el.clear()\n        el.send_keys({safe_value})\n"
 
             elif action == "check_text":
                 script += f"""        actual_text = el.text
-        expected = '{value}'
+        expected = {safe_value}
         assert expected in actual_text, f"텍스트 불일치! 기대: {{expected}}, 실제: {{actual_text}}"
 """
             elif action == "check_url":
-                script += f"""        wait.until(EC.url_contains('{value}'))
-        assert '{value}' in driver.current_url
+                script += f"""        wait.until(EC.url_contains({safe_value}))
+        assert {safe_value} in driver.current_url
 """
             elif action == "switch_frame":
                 script += "        driver.switch_to.frame(el)\n"

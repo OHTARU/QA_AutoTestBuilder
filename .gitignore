@@ -31,3 +31,4 @@ Thumbs.db
 # 7. (선택사항) 민감한 정보가 담긴 파일
 .env
 secrets.json
+secret.key
