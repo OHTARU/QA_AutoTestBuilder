@@ -3,3 +3,5 @@ webdriver-manager
 pytest
 allure-pytest
 cryptography
+pandas
+openpyxl

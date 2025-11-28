@@ -3,24 +3,28 @@ from tkinter import messagebox, filedialog
 import threading
 import sys
 import config
+import os
 from core.browser import BrowserManager
 from core.scanner import PageScanner
 from core.generator import ScriptGenerator
 from core.runner import TestRunner
 from gui.components import StepListManager
 from utils.file_manager import save_to_json, load_from_json
+from utils.excel_loader import get_excel_columns # [New]
 
 class AutoTestApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("No-Code Test Builder v5.5 (Level 3.5 Update)")
-        self.geometry("620x800")
+        self.title("No-Code Test Builder v6.0 (Excel DDT)")
+        self.geometry("620x850") # 높이 조금 늘림
         
+        # Modules
         self.browser = BrowserManager()
         self.scanner = PageScanner()
         self.generator = ScriptGenerator()
         self.runner = TestRunner()
         self.steps_data = []
+        self.excel_path = None # [New] 엑셀 파일 경로 저장
 
         self._setup_ui()
         
@@ -28,16 +32,29 @@ class AutoTestApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def _setup_ui(self):
-        # 1. Top
+        # 1. Top (URL, File, Excel)
         top = tk.Frame(self, pady=5)
         top.pack(fill="x")
-        tk.Label(top, text="URL:").pack(side="left")
-        self.url_entry = tk.Entry(top, width=30)
+        
+        # Row 1: URL
+        row1 = tk.Frame(top)
+        row1.pack(fill="x", pady=2)
+        tk.Label(row1, text="URL:").pack(side="left")
+        self.url_entry = tk.Entry(row1, width=40)
         self.url_entry.pack(side="left", padx=5)
         self.url_entry.insert(0, config.DEFAULT_URL)
-        tk.Button(top, text="🌐 열기", command=self.cmd_open_browser, bg="#E1F5FE").pack(side="left")
-        tk.Button(top, text="💾 저장", command=self.cmd_save).pack(side="right", padx=5)
-        tk.Button(top, text="📂 로드", command=self.cmd_load).pack(side="right")
+        tk.Button(row1, text="🌐 열기", command=self.cmd_open_browser, bg="#E1F5FE").pack(side="left")
+
+        # Row 2: Buttons
+        row2 = tk.Frame(top)
+        row2.pack(fill="x", pady=2)
+        tk.Button(row2, text="💾 저장", command=self.cmd_save).pack(side="left", padx=5)
+        tk.Button(row2, text="📂 로드", command=self.cmd_load).pack(side="left")
+        
+        # [New] 엑셀 버튼 및 라벨
+        tk.Button(row2, text="📊 엑셀 데이터 연동", command=self.cmd_load_excel, bg="#FFF9C4").pack(side="left", padx=20)
+        self.lbl_excel = tk.Label(row2, text="(선택된 파일 없음)", fg="gray")
+        self.lbl_excel.pack(side="left")
 
         # 2. Control
         ctrl = tk.Frame(self, pady=10, bg="#F5F5F5")
@@ -54,28 +71,20 @@ class AutoTestApp(tk.Tk):
         canvas = tk.Canvas(list_frame, bg="white")
         scrollbar = tk.Scrollbar(list_frame, orient="vertical", command=canvas.yview)
         self.scrollable_frame = tk.Frame(canvas, bg="white")
-        
         self.scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
-        
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        self.list_manager = StepListManager(
-            self.scrollable_frame, 
-            self.steps_data, 
-            None, 
-            self.cmd_highlight
-        )
+        self.list_manager = StepListManager(self.scrollable_frame, self.steps_data, None, self.cmd_highlight)
 
         # 4. Bottom
         btm = tk.Frame(self, pady=10, bg="#E8EAF6")
         btm.pack(fill="x")
         
-        # [Level 3.5] Headless 체크박스 추가
         self.headless_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(btm, text="Headless 모드 (브라우저 숨김)", variable=self.headless_var, bg="#E8EAF6").pack(side="top", pady=2)
+        tk.Checkbutton(btm, text="Headless 모드", variable=self.headless_var, bg="#E8EAF6").pack(side="top")
 
         tk.Button(btm, text="▶ 테스트 시작", command=self.cmd_run_test, 
                   bg="#4CAF50", fg="white", width=20).pack(side="left", padx=20, pady=5)
@@ -100,17 +109,14 @@ class AutoTestApp(tk.Tk):
             self.status_label.config(text=f"텍스트 검증 추가됨: {selected_text[:10]}...", fg="green")
             return
 
-        if hasattr(self.browser, "get_selected_element"):
-             el = self.browser.get_selected_element()
-        else:
-             el = self.browser.get_active_element()
+        if hasattr(self.browser, "get_selected_element"): el = self.browser.get_selected_element()
+        else: el = self.browser.get_active_element()
 
         if not el or el.tag_name == 'html':
             messagebox.showwarning("경고", "요소를 클릭하거나 텍스트를 드래그 후 시도하세요.")
             return
         
-        if hasattr(self.browser, "_inject_click_tracker"):
-            self.browser._inject_click_tracker()
+        if hasattr(self.browser, "_inject_click_tracker"): self.browser._inject_click_tracker()
 
         step = self.scanner.create_step_data(el)
         self.steps_data.append(step)
@@ -125,11 +131,10 @@ class AutoTestApp(tk.Tk):
         step = self.scanner.create_url_validation_step(current_url)
         self.steps_data.append(step)
         self.list_manager.refresh()
-        self.status_label.config(text=f"URL 검증 추가됨: {current_url}", fg="green")
+        self.status_label.config(text=f"URL 검증 추가됨", fg="green")
 
     def cmd_highlight(self, step):
-        if step['action'] in ["check_url", "comment"]:
-            return
+        if step['action'] in ["check_url", "comment"]: return
         self.browser.highlight_element(locator_type=step['type'], locator_value=step['locator'])
 
     def cmd_save(self):
@@ -146,12 +151,26 @@ class AutoTestApp(tk.Tk):
             self.steps_data.extend(steps)
             self.list_manager.refresh()
 
+    # [New] 엑셀 로드 버튼 핸들러
+    def cmd_load_excel(self):
+        f = filedialog.askopenfilename(filetypes=[("Excel Files", "*.xlsx *.xls")])
+        if f:
+            self.excel_path = f
+            filename = os.path.basename(f)
+            columns = get_excel_columns(f)
+            
+            # 사용자에게 컬럼명 알려주기
+            col_msg = ", ".join([f"{{{col}}}" for col in columns])
+            self.lbl_excel.config(text=f"파일: {filename}\n변수: {col_msg}", fg="blue")
+            messagebox.showinfo("엑셀 로드 성공", f"사용 가능한 변수명:\n{col_msg}\n\n입력값에 {{ID}} 처럼 사용하세요.")
+
     def cmd_run_test(self):
         if not self.steps_data: return
         
-        # [Level 3.5] Headless 옵션 전달
         is_headless = self.headless_var.get()
-        script = self.generator.generate(self.url_entry.get(), self.steps_data, is_headless)
+        
+        # [수정] 엑셀 경로(self.excel_path)도 같이 넘겨줌
+        script = self.generator.generate(self.url_entry.get(), self.steps_data, is_headless, self.excel_path)
         
         with open(config.TEMP_TEST_FILE, "w", encoding="utf-8") as f:
             f.write(script)
@@ -159,8 +178,25 @@ class AutoTestApp(tk.Tk):
 
     def _run_process(self):
         self.status_label.config(text="테스트 실행 중...", fg="blue")
+        
+        # 프로세스 실행
         proc = self.runner.run_pytest()
+        
+        # 결과 받아오기 (여기서 멈춰서 기다림)
         stdout, stderr = proc.communicate()
+        
+        # [핵심] 숨겨진 로그를 터미널에 출력
+        print("\n" + "="*30)
+        print(" [Pytest 실행 로그] ")
+        print("="*30)
+        print(stdout)
+        
+        if stderr:
+            print("\n" + "="*30)
+            print(" [에러 로그 (STDERR)] ")
+            print("="*30)
+            print(stderr)
+            
         self.status_label.config(text="테스트 완료. 리포트 생성.", fg="purple")
         self.runner.open_report()
 

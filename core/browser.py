@@ -10,27 +10,27 @@ class BrowserManager:
         self.driver = None
 
     def open_browser(self, url):
-        """브라우저 실행 (시크릿 모드로 보안 팝업 원천 차단)"""
+        """브라우저 실행 (포트 충돌 방지 및 시크릿 모드)"""
         try:
             service = Service(ChromeDriverManager().install())
             
             options = webdriver.ChromeOptions()
             
-            # [핵심 해결책] 시크릿 모드 적용 (비밀번호 검사 안 함)
-            options.add_argument("--incognito")
+            # [수정] 포트 고정 옵션 제거 (충돌 원인 해결)
+            # options.add_argument("--remote-debugging-port=9222") 
             
-            # [안정성 옵션] 튕김 방지
-            options.add_argument("--remote-debugging-port=9222")
+            # [안정성 옵션]
+            options.add_argument("--incognito") # 시크릿 모드 (필수)
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
             options.add_argument("--start-maximized")
             options.add_argument("--disable-notifications")
             
-            # 비밀번호 저장 팝업 끄기 (Prefs)
+            # 팝업 차단
             prefs = {
                 "credentials_enable_service": False,
                 "profile.password_manager_enabled": False,
-                "profile.password_manager_leak_detection": False, # 유출 감지 끄기
             }
             options.add_experimental_option("prefs", prefs)
             
@@ -43,7 +43,7 @@ class BrowserManager:
             
             self._inject_click_tracker()
             
-            return True, "브라우저 실행 중 (시크릿 모드)"
+            return True, "브라우저 실행 중"
         except Exception as e:
             return False, f"실행 실패: {e}"
 

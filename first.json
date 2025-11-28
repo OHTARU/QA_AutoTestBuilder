@@ -6,14 +6,14 @@
             "type": "CSS",
             "locator": "[data-test='username']",
             "action": "input",
-            "value": "standard_user"
+            "value": "{ID}"
         },
         {
             "name": "[input] Data-Test: password",
             "type": "CSS",
             "locator": "[data-test='password']",
-            "action": "input_password",
-            "value": "ENC:gAAAAABpKAme0_QXGCCXLcDbFb6ctTZWhJlHm5XGMbO9jiZl7A0-zz2RZrHJuguWL4lHpzTN-Z7i0TsH5VCafhXaMDoLqPzmkg=="
+            "action": "input",
+            "value": "{PW}"
         },
         {
             "name": "[input] Data-Test: login-button",

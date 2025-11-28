@@ -1,16 +1,56 @@
 import config
+import os
 
 class ScriptGenerator:
-    def generate(self, url, steps, is_headless=False):
-        """Pytest 스크립트 생성 (포트 충돌 해결 버전)"""
+    def generate(self, url, steps, is_headless=False, excel_path=None):
+        """Pytest 스크립트 생성 (들여쓰기 오류 수정)"""
         
-        # Headless 옵션 설정
+        # [수정] 들여쓰기(Indentation)를 안전하게 처리
+        setup_lines = []
         if is_headless:
-            headless_setup = """    options.add_argument("--headless=new")
-    options.add_argument("--window-size=1920,1080")"""
+            setup_lines.append('options.add_argument("--headless=new")')
+            setup_lines.append('options.add_argument("--window-size=1920,1080")')
         else:
-            headless_setup = '    options.add_argument("--start-maximized")'
+            setup_lines.append('options.add_argument("--start-maximized")')
+        
+        # 리스트의 각 줄 앞에 공백 4칸을 붙여서 합침
+        headless_setup = "\n".join(["    " + line for line in setup_lines])
 
+        # [Excel] 데이터 로딩 코드
+        data_loader_code = ""
+        decorator_code = ""
+        test_args = "driver"
+        
+        if excel_path:
+            safe_excel_path = excel_path.replace("\\", "/")
+            data_loader_code = f"""
+import pandas as pd
+import sys
+import os
+
+def get_excel_data():
+    file_path = r"{safe_excel_path}"
+    print(f"\\n[INFO] 엑셀 로드 경로: {{file_path}}")
+    
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"엑셀 파일이 없습니다: {{file_path}}")
+
+    try:
+        df = pd.read_excel(file_path, engine='openpyxl').fillna("")
+        df.columns = [str(c).strip() for c in df.columns]
+        data = df.to_dict(orient='records')
+        print(f"[INFO] 데이터 {{len(data)}}건 로드됨")
+        if not data:
+            raise ValueError("데이터가 비어있습니다.")
+        return data
+    except Exception as e:
+        raise ValueError(f"엑셀 로드 실패: {{e}}")
+"""
+            decorator_code = '@pytest.mark.parametrize("row_data", get_excel_data())'
+            test_args = "driver, row_data"
+
+        # --- 스크립트 시작 ---
+        # 주의: {headless_setup}은 이미 공백 4칸을 포함하므로, f-string 내에서는 맨 앞에 붙여야 함
         script = f"""
 import pytest
 import allure
@@ -24,23 +64,18 @@ from selenium.common.exceptions import TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
+{data_loader_code}
+
 @pytest.fixture
 def driver():
     options = webdriver.ChromeOptions()
-    
-    # [Headless 모드]
 {headless_setup}
     
-    # [기본 안정성 옵션]
     options.add_argument("--incognito")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     
-    # [수정] 포트 충돌 방지를 위해 디버깅 포트 옵션 주석 처리
-    # options.add_argument("--remote-debugging-port=9222")
-    
-    # 팝업 차단
     prefs = {{
         "credentials_enable_service": False,
         "profile.password_manager_enabled": False,
@@ -58,8 +93,9 @@ def driver():
     except:
         pass
 
+{decorator_code}
 @allure.feature("자동 생성된 테스트 시나리오")
-def test_scenario(driver):
+def test_scenario({test_args}):
     wait = WebDriverWait(driver, {config.EXPLICIT_WAIT})
     actions = ActionChains(driver)
     drag_source_el = None
@@ -85,6 +121,10 @@ def test_scenario(driver):
 """
                 continue
 
+            value_expr = repr(value)
+            if excel_path and "{" in value and "}" in value:
+                value_expr = f"'{value}'.format(**row_data)"
+
             if action in ["accept_alert", "dismiss_alert", "switch_default", "check_url"]:
                  script += f"""
         with allure.step("Step {i+1}: {action.upper()}"):
@@ -109,19 +149,16 @@ def test_scenario(driver):
                 driver.execute_script("arguments[0].click();", el)
 """
             elif action in ["input", "input_password"]:
-                safe_val = repr(value)
-                script += f"            el.clear(); el.send_keys({safe_val})\n"
+                script += f"            el.clear(); el.send_keys({value_expr})\n"
 
             elif action == "check_text":
-                safe_val = repr(value)
                 script += f"""            actual = el.text
-            expected = {safe_val}
+            expected = {value_expr}
             assert expected in actual, f"텍스트 불일치! (기대: {{expected}}, 실제: {{actual}})"
 """
             elif action == "check_url":
-                safe_val = repr(value)
-                script += f"""            wait.until(EC.url_contains({safe_val}))
-            assert {safe_val} in driver.current_url
+                script += f"""            wait.until(EC.url_contains({value_expr}))
+            assert {value_expr} in driver.current_url
 """
             elif action == "switch_frame":
                 script += "            driver.switch_to.frame(el)\n"
