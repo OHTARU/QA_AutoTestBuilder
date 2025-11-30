@@ -20,29 +20,30 @@ class StepListManager:
 
         tk.Label(row, text=f"{idx+1}", width=2, bg="white").pack(side="left")
 
-        # [Level 3.5] 주석(comment)일 경우 이름 배경색을 다르게 표시
+        # 주석이면 배경색 변경
         entry_bg = "#F0F0F0"
-        if step["action"] == "comment": entry_bg = "#FFF9C4" # 연한 노랑
+        if step["action"] == "comment": entry_bg = "#FFF9C4"
 
         name_var = tk.StringVar(value=step["name"])
         name_var.trace("w", lambda *a: self._update_step_data(idx, "name", name_var.get()))
         tk.Entry(row, textvariable=name_var, width=18, bg=entry_bg).pack(side="left", padx=5)
 
-        # [Level 3.5] comment 액션 추가
+        # [Level 4.5] 액션 목록 추가 (press_key, hover)
         action_var = tk.StringVar(value=step["action"])
         action_options = [
             "click", "input", "input_password", "check_text", "check_url",
+            "press_key", "hover", # [New]
             "switch_frame", "switch_default",
             "accept_alert", "dismiss_alert",
             "drag_source", "drop_target",
-            "comment" # 주석 추가
+            "comment"
         ]
         cb = ttk.Combobox(row, textvariable=action_var, values=action_options, width=12, state="readonly")
         cb.pack(side="left", padx=2)
         cb.bind("<<ComboboxSelected>>", lambda e: self._update_step_data(idx, "action", action_var.get(), refresh=True))
 
-        # 입력값 표시 로직
-        if step["action"] in ["input", "input_password", "check_text", "check_url"]:
+        # 입력값 표시 로직 (press_key도 값이 필요함 - 예: ENTER)
+        if step["action"] in ["input", "input_password", "check_text", "check_url", "press_key"]:
             val_var = tk.StringVar(value=step["value"])
             val_var.trace("w", lambda *a: self._update_step_data(idx, "value", val_var.get()))
             
@@ -50,6 +51,7 @@ class StepListManager:
             show_char = ""
             if step["action"] == "check_text": bg_color = "#FFF3E0"
             elif step["action"] == "check_url": bg_color = "#E8F5E9"
+            elif step["action"] == "press_key": bg_color = "#D1C4E9" # 보라색 (키 입력)
             elif step["action"] == "input_password": 
                 bg_color = "#FFEBEE"
                 show_char = "*"

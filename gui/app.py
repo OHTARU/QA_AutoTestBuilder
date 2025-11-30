@@ -4,27 +4,28 @@ import threading
 import sys
 import config
 import os
+import re
 from core.browser import BrowserManager
 from core.scanner import PageScanner
 from core.generator import ScriptGenerator
 from core.runner import TestRunner
 from gui.components import StepListManager
 from utils.file_manager import save_to_json, load_from_json
-from utils.excel_loader import get_excel_columns # [New]
+from utils.excel_loader import get_excel_columns
 
 class AutoTestApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("No-Code Test Builder v6.0 (Excel DDT)")
-        self.geometry("620x850") # 높이 조금 늘림
+        self.title("No-Code Test Builder v6.5 (Extensions)")
+        self.geometry("620x850")
         
-        # Modules
         self.browser = BrowserManager()
         self.scanner = PageScanner()
         self.generator = ScriptGenerator()
         self.runner = TestRunner()
         self.steps_data = []
-        self.excel_path = None # [New] 엑셀 파일 경로 저장
+        self.excel_path = None
+        self.excel_columns = [] # [New] 엑셀 컬럼 저장용
 
         self._setup_ui()
         
@@ -32,11 +33,9 @@ class AutoTestApp(tk.Tk):
         self.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def _setup_ui(self):
-        # 1. Top (URL, File, Excel)
         top = tk.Frame(self, pady=5)
         top.pack(fill="x")
         
-        # Row 1: URL
         row1 = tk.Frame(top)
         row1.pack(fill="x", pady=2)
         tk.Label(row1, text="URL:").pack(side="left")
@@ -45,18 +44,15 @@ class AutoTestApp(tk.Tk):
         self.url_entry.insert(0, config.DEFAULT_URL)
         tk.Button(row1, text="🌐 열기", command=self.cmd_open_browser, bg="#E1F5FE").pack(side="left")
 
-        # Row 2: Buttons
         row2 = tk.Frame(top)
         row2.pack(fill="x", pady=2)
         tk.Button(row2, text="💾 저장", command=self.cmd_save).pack(side="left", padx=5)
         tk.Button(row2, text="📂 로드", command=self.cmd_load).pack(side="left")
         
-        # [New] 엑셀 버튼 및 라벨
         tk.Button(row2, text="📊 엑셀 데이터 연동", command=self.cmd_load_excel, bg="#FFF9C4").pack(side="left", padx=20)
         self.lbl_excel = tk.Label(row2, text="(선택된 파일 없음)", fg="gray")
         self.lbl_excel.pack(side="left")
 
-        # 2. Control
         ctrl = tk.Frame(self, pady=10, bg="#F5F5F5")
         ctrl.pack(fill="x")
         tk.Button(ctrl, text="🎯 요소/텍스트 스캔 (F2)", command=self.cmd_scan_element, 
@@ -64,7 +60,6 @@ class AutoTestApp(tk.Tk):
         tk.Button(ctrl, text="🔗 URL 검증 추가", command=self.cmd_add_url_check,
                   bg="#C8E6C9", width=20, height=2).pack(side="left", padx=5)
 
-        # 3. List
         list_frame = tk.LabelFrame(self, text="테스트 시나리오", padx=5, pady=5)
         list_frame.pack(fill="both", expand=True, padx=10, pady=5)
         
@@ -79,22 +74,17 @@ class AutoTestApp(tk.Tk):
 
         self.list_manager = StepListManager(self.scrollable_frame, self.steps_data, None, self.cmd_highlight)
 
-        # 4. Bottom
         btm = tk.Frame(self, pady=10, bg="#E8EAF6")
         btm.pack(fill="x")
-        
         self.headless_var = tk.BooleanVar(value=False)
         tk.Checkbutton(btm, text="Headless 모드", variable=self.headless_var, bg="#E8EAF6").pack(side="top")
-
         tk.Button(btm, text="▶ 테스트 시작", command=self.cmd_run_test, 
                   bg="#4CAF50", fg="white", width=20).pack(side="left", padx=20, pady=5)
         tk.Button(btm, text="⏹ 정지", command=self.cmd_stop_test, 
                   bg="#F44336", fg="white").pack(side="right", padx=20, pady=5)
-        
         self.status_label = tk.Label(self, text="상태: 대기 중", fg="blue")
         self.status_label.pack()
 
-    # --- Commands ---
     def cmd_open_browser(self):
         success, msg = self.browser.open_browser(self.url_entry.get())
         if not success: messagebox.showerror("에러", msg)
@@ -151,25 +141,31 @@ class AutoTestApp(tk.Tk):
             self.steps_data.extend(steps)
             self.list_manager.refresh()
 
-    # [New] 엑셀 로드 버튼 핸들러
     def cmd_load_excel(self):
         f = filedialog.askopenfilename(filetypes=[("Excel Files", "*.xlsx *.xls")])
         if f:
             self.excel_path = f
             filename = os.path.basename(f)
-            columns = get_excel_columns(f)
-            
-            # 사용자에게 컬럼명 알려주기
-            col_msg = ", ".join([f"{{{col}}}" for col in columns])
+            self.excel_columns = get_excel_columns(f) # [New] 컬럼 저장
+            col_msg = ", ".join([f"{{{col}}}" for col in self.excel_columns])
             self.lbl_excel.config(text=f"파일: {filename}\n변수: {col_msg}", fg="blue")
             messagebox.showinfo("엑셀 로드 성공", f"사용 가능한 변수명:\n{col_msg}\n\n입력값에 {{ID}} 처럼 사용하세요.")
 
     def cmd_run_test(self):
         if not self.steps_data: return
         
+        # [Level 4.5] 엑셀 변수 유효성 검사 (Pre-validation)
+        if self.excel_path and self.excel_columns:
+            for step in self.steps_data:
+                val = step.get('value', '')
+                # 정규식으로 {변수명} 추출
+                matches = re.findall(r"\{(.+?)\}", val)
+                for var in matches:
+                    if var not in self.excel_columns:
+                        resp = messagebox.askyesno("경고", f"변수 '{{{var}}}'는 엑셀 파일에 없습니다!\n계속 진행하시겠습니까?")
+                        if not resp: return # 취소하면 중단
+
         is_headless = self.headless_var.get()
-        
-        # [수정] 엑셀 경로(self.excel_path)도 같이 넘겨줌
         script = self.generator.generate(self.url_entry.get(), self.steps_data, is_headless, self.excel_path)
         
         with open(config.TEMP_TEST_FILE, "w", encoding="utf-8") as f:
@@ -178,14 +174,9 @@ class AutoTestApp(tk.Tk):
 
     def _run_process(self):
         self.status_label.config(text="테스트 실행 중...", fg="blue")
-        
-        # 프로세스 실행
         proc = self.runner.run_pytest()
-        
-        # 결과 받아오기 (여기서 멈춰서 기다림)
         stdout, stderr = proc.communicate()
         
-        # [핵심] 숨겨진 로그를 터미널에 출력
         print("\n" + "="*30)
         print(" [Pytest 실행 로그] ")
         print("="*30)
@@ -196,7 +187,7 @@ class AutoTestApp(tk.Tk):
             print(" [에러 로그 (STDERR)] ")
             print("="*30)
             print(stderr)
-            
+
         self.status_label.config(text="테스트 완료. 리포트 생성.", fg="purple")
         self.runner.open_report()
 

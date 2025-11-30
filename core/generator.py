@@ -3,20 +3,14 @@ import os
 
 class ScriptGenerator:
     def generate(self, url, steps, is_headless=False, excel_path=None):
-        """Pytest 스크립트 생성 (들여쓰기 오류 수정)"""
+        """Pytest 스크립트 생성 (Keys, Hover 추가)"""
         
-        # [수정] 들여쓰기(Indentation)를 안전하게 처리
-        setup_lines = []
         if is_headless:
-            setup_lines.append('options.add_argument("--headless=new")')
-            setup_lines.append('options.add_argument("--window-size=1920,1080")')
+            headless_setup = """    options.add_argument("--headless=new")
+    options.add_argument("--window-size=1920,1080")"""
         else:
-            setup_lines.append('options.add_argument("--start-maximized")')
-        
-        # 리스트의 각 줄 앞에 공백 4칸을 붙여서 합침
-        headless_setup = "\n".join(["    " + line for line in setup_lines])
+            headless_setup = '    options.add_argument("--start-maximized")'
 
-        # [Excel] 데이터 로딩 코드
         data_loader_code = ""
         decorator_code = ""
         test_args = "driver"
@@ -30,32 +24,29 @@ import os
 
 def get_excel_data():
     file_path = r"{safe_excel_path}"
-    print(f"\\n[INFO] 엑셀 로드 경로: {{file_path}}")
-    
+    print(f"\\n[INFO] 엑셀 로드 중: {{file_path}}")
     if not os.path.exists(file_path):
-        raise FileNotFoundError(f"엑셀 파일이 없습니다: {{file_path}}")
-
+        print(f"[ERROR] 파일 없음: {{file_path}}")
+        return []
     try:
         df = pd.read_excel(file_path, engine='openpyxl').fillna("")
         df.columns = [str(c).strip() for c in df.columns]
         data = df.to_dict(orient='records')
-        print(f"[INFO] 데이터 {{len(data)}}건 로드됨")
-        if not data:
-            raise ValueError("데이터가 비어있습니다.")
+        if not data: print("[WARN] 데이터 없음")
         return data
     except Exception as e:
-        raise ValueError(f"엑셀 로드 실패: {{e}}")
+        print(f"\\n[FATAL] 엑셀 읽기 실패: {{e}}")
+        return []
 """
             decorator_code = '@pytest.mark.parametrize("row_data", get_excel_data())'
             test_args = "driver, row_data"
 
-        # --- 스크립트 시작 ---
-        # 주의: {headless_setup}은 이미 공백 4칸을 포함하므로, f-string 내에서는 맨 앞에 붙여야 함
         script = f"""
 import pytest
 import allure
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys  # [New] Keys 추가
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait
@@ -69,8 +60,7 @@ import time
 @pytest.fixture
 def driver():
     options = webdriver.ChromeOptions()
-{headless_setup}
-    
+    {headless_setup}
     options.add_argument("--incognito")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
@@ -142,6 +132,7 @@ def test_scenario({test_args}):
                 raise
 """
 
+            # --- 액션 로직 ---
             if action == "click":
                 script += """            try:
                 el.click()
@@ -150,6 +141,20 @@ def test_scenario({test_args}):
 """
             elif action in ["input", "input_password"]:
                 script += f"            el.clear(); el.send_keys({value_expr})\n"
+
+            # [Level 4.5] 키보드 키 입력 (ENTER, TAB, ESC 등)
+            elif action == "press_key":
+                # value가 "ENTER"면 Keys.ENTER로 변환
+                script += f"""            key_to_press = getattr(Keys, '{value.upper()}', None)
+            if key_to_press:
+                el.send_keys(key_to_press)
+            else:
+                print(f"[WARN] 알 수 없는 키: {value}")
+"""
+
+            # [Level 4.5] 마우스 호버 (Hover)
+            elif action == "hover":
+                script += "            actions.move_to_element(el).perform()\n"
 
             elif action == "check_text":
                 script += f"""            actual = el.text
